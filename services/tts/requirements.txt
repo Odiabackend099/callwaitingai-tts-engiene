@@ -17,6 +17,11 @@ requests>=2.31.0,<3.0.0
 # Data validation
 pydantic>=2.4.0,<3.0.0
 
+# Audio processing
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<2.0.0
+aiofiles>=23.0.0,<24.0.0
+
 # Audio processing (optional - for duration detection)
 # Uncomment if you need advanced audio analysis
 # librosa>=0.10.1

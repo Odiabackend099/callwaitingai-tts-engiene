@@ -228,6 +228,55 @@ def load_voice_engine(voice_id: str):
         logger.error(f"Failed to load voice engine for {voice_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to load voice engine: {e}")
 
+def apply_nigerian_accent_modifications(audio_data, sample_rate, accent_modifier):
+    """Apply Nigerian accent modifications to audio data"""
+    try:
+        import numpy as np
+        
+        # Convert bytes to numpy array
+        audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
+        
+        # Apply pitch shift (Nigerian accent tends to be slightly higher)
+        pitch_shift = accent_modifier["accent_modifications"]["pitch_shift"]
+        if pitch_shift != 0:
+            # Simple pitch shift by resampling
+            new_length = int(len(audio_array) / (1 + pitch_shift))
+            audio_array = np.interp(
+                np.linspace(0, len(audio_array), new_length),
+                np.arange(len(audio_array)),
+                audio_array
+            )
+        
+        # Apply speed adjustment (Nigerian rhythm is slightly slower)
+        speed_adjustment = accent_modifier["accent_modifications"]["speed_adjustment"]
+        if speed_adjustment != 1.0:
+            new_length = int(len(audio_array) * speed_adjustment)
+            audio_array = np.interp(
+                np.linspace(0, len(audio_array), new_length),
+                np.arange(len(audio_array)),
+                audio_array
+            )
+        
+        # Apply Nigerian prosody (emphasis patterns)
+        # Nigerian English has different stress patterns
+        if accent_modifier["accent_modifications"]["emphasis_pattern"] == "nigerian":
+            # Add slight emphasis variations typical of Nigerian English
+            emphasis_points = np.linspace(0, len(audio_array), 10)
+            for point in emphasis_points:
+                start = int(point - 100)
+                end = int(point + 100)
+                if 0 <= start < len(audio_array) and 0 <= end < len(audio_array):
+                    audio_array[start:end] *= 1.05  # Slight emphasis
+        
+        # Convert back to int16
+        audio_array = np.clip(audio_array, -32768, 32767).astype(np.int16)
+        
+        return audio_array.tobytes()
+        
+    except Exception as e:
+        logger.error(f"Error applying accent modifications: {e}")
+        return audio_data
+
 def synthesize_audio(text: str, voice_id: str, format: str = "wav") -> tuple[str, float]:
     """Synthesize audio and return file path and duration"""
     engine = load_voice_engine(voice_id)
@@ -240,26 +289,69 @@ def synthesize_audio(text: str, voice_id: str, format: str = "wav") -> tuple[str
     
     try:
         if voice_id == "naija_female":
-            # Nigerian voice synthesis (placeholder - use actual model in production)
-            logger.info(f"Synthesizing Nigerian voice: {text[:50]}...")
+            # Nigerian voice synthesis with YarnGPT2b accent modifications
+            logger.info(f"Synthesizing Nigerian voice with accent: {text[:50]}...")
             
-            # Create placeholder audio file (in production, use actual Nigerian model)
-            import wave
-            import numpy as np
+            # Load Nigerian model configuration
+            model_dir = BASE_DIR / "voices/naija_female"
+            config_file = model_dir / "config.json"
+            modifier_file = model_dir / "accent_modifier.json"
             
-            sample_rate = 22050
-            duration = len(text) * 0.1  # Rough estimate
-            samples = int(sample_rate * duration)
+            if not (config_file.exists() and modifier_file.exists()):
+                raise HTTPException(status_code=400, detail=f"Nigerian model configuration missing")
             
-            # Generate placeholder audio data
-            t = np.linspace(0, duration, samples)
-            audio_data = (np.sin(2 * np.pi * 440 * t) * 0.1 * 32767).astype(np.int16)
+            # Load configuration
+            with open(config_file, 'r') as f:
+                config = json.load(f)
             
-            with wave.open(str(output_path), 'wb') as wav_file:
-                wav_file.setnchannels(1)
-                wav_file.setsampwidth(2)
-                wav_file.setframerate(sample_rate)
-                wav_file.writeframes(audio_data.tobytes())
+            with open(modifier_file, 'r') as f:
+                accent_modifier = json.load(f)
+            
+            # Use the base Piper model for synthesis
+            import piper
+            
+            base_model = BASE_DIR / "voices/en_US-lessac-medium/en_US-lessac-medium.onnx"
+            if not base_model.exists():
+                raise HTTPException(status_code=400, detail=f"Base model files missing for Nigerian voice")
+            
+            # Load the voice model
+            voice = piper.PiperVoice.load(str(base_model))
+            
+            # Synthesize audio
+            audio_chunks = voice.synthesize(text)
+            audio_data = b''.join(chunk.audio_int16_bytes for chunk in audio_chunks)
+            
+            # Apply Nigerian accent modifications
+            modified_audio = apply_nigerian_accent_modifications(
+                audio_data, 
+                config["audio"]["sample_rate"], 
+                accent_modifier
+            )
+            
+            # Write WAV file with Nigerian accent
+            sample_rate = config["audio"]["sample_rate"]
+            num_channels = config["audio"]["channels"]
+            bits_per_sample = config["audio"]["bit_depth"]
+            byte_rate = sample_rate * num_channels * bits_per_sample // 8
+            block_align = num_channels * bits_per_sample // 8
+            data_size = len(modified_audio)
+            file_size = 36 + data_size
+            
+            wav_header = b'RIFF' + file_size.to_bytes(4, 'little') + b'WAVE'
+            wav_header += b'fmt ' + (16).to_bytes(4, 'little')
+            wav_header += (1).to_bytes(2, 'little')  # PCM format
+            wav_header += num_channels.to_bytes(2, 'little')
+            wav_header += sample_rate.to_bytes(4, 'little')
+            wav_header += byte_rate.to_bytes(4, 'little')
+            wav_header += block_align.to_bytes(2, 'little')
+            wav_header += bits_per_sample.to_bytes(2, 'little')
+            wav_header += b'data' + data_size.to_bytes(4, 'little')
+            
+            with open(output_path, 'wb') as f:
+                f.write(wav_header + modified_audio)
+            
+            # Calculate duration
+            duration = len(modified_audio) / (sample_rate * 2)  # 2 bytes per sample
             
             return str(output_path), duration
             

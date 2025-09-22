@@ -1,0 +1,8 @@
+{
+  "accent_modifications": {
+    "pitch_shift": 0.1,
+    "speed_adjustment": 0.95,
+    "emphasis_pattern": "nigerian",
+    "pronunciation_rules": "nigerian_english"
+  }
+}

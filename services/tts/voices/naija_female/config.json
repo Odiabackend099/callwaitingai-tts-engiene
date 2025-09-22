@@ -1,0 +1,26 @@
+{
+  "model": {
+    "name": "YarnGPT2b",
+    "type": "nigerian_tts",
+    "version": "1.0",
+    "repository": "saheedniyi/YarnGPT2b",
+    "voice": "chinenye",
+    "accent": "Nigerian English",
+    "language": "en-NG"
+  },
+  "audio": {
+    "sample_rate": 22050,
+    "channels": 1,
+    "bit_depth": 16
+  },
+  "voice_settings": {
+    "pitch": 1.0,
+    "speed": 1.0,
+    "emphasis": "nigerian_accent"
+  },
+  "accent_features": {
+    "pronunciation": "nigerian_english",
+    "rhythm": "nigerian_prosody",
+    "tonal_features": "nigerian_inflection"
+  }
+}

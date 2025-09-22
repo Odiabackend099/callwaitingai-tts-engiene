@@ -1,13 +1,31 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-piper-tts==1.2.0
-numpy==1.24.3
-scipy==1.11.4
-requests==2.31.0
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-pydantic==2.5.0
-aiofiles==23.2.1
-httpx==0.25.2
+# CallWaiting.ai TTS Engine - Fixed Requirements
+# Tested configuration for realistic voice synthesis
 
+# Core TTS Engine - Specific working versions
+piper-tts>=1.2.0,<2.0.0
+onnxruntime>=1.16.0,<2.0.0
+
+# Web Framework - Stable versions
+fastapi>=0.104.1,<0.110.0
+uvicorn[standard]>=0.24.0,<0.30.0
+python-multipart>=0.0.6
+
+# HTTP Client with async support
+httpx>=0.25.0,<0.28.0
+requests>=2.31.0,<3.0.0
+
+# Data validation
+pydantic>=2.4.0,<3.0.0
+
+# Audio processing (optional - for duration detection)
+# Uncomment if you need advanced audio analysis
+# librosa>=0.10.1
+# soundfile>=0.12.1
+
+# System utilities
+pathlib>=1.0.1
+
+# Development and testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0  # For testing HTTP endpoints
